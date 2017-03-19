@@ -51,6 +51,7 @@ class IRC_CORE_EXPORT IrcConnection : public QObject
 
     Q_PROPERTY(QString host READ host WRITE setHost NOTIFY hostChanged)
     Q_PROPERTY(int port READ port WRITE setPort NOTIFY portChanged)
+    Q_PROPERTY(bool bypass READ bypass WRITE setBypass NOTIFY bypassChanged)
     Q_PROPERTY(QStringList servers READ servers WRITE setServers NOTIFY serversChanged)
     Q_PROPERTY(QString userName READ userName WRITE setUserName NOTIFY userNameChanged)
     Q_PROPERTY(QString nickName READ nickName WRITE setNickName NOTIFY nickNameChanged)
@@ -87,6 +88,9 @@ public:
 
     int port() const;
     void setPort(int port);
+
+    bool bypass() const;
+    void setBypass(bool bypass);
 
     QStringList servers() const;
     void setServers(const QStringList& servers);
@@ -216,6 +220,7 @@ Q_SIGNALS:
 
     void hostChanged(const QString& host);
     void portChanged(int port);
+    void bypassChanged(int port);
     void serversChanged(const QStringList& servers);
     void userNameChanged(const QString& name);
     void nickNameChanged(const QString& name);

@@ -45,6 +45,7 @@
 #include <QMetaObject>
 #include <QMetaMethod>
 #include <QMetaEnum>
+#include <QNetworkProxy>
 #ifndef QT_NO_SSL
 #include <QSslSocket>
 #include <QSslError>
@@ -255,6 +256,7 @@ IrcConnectionPrivate::IrcConnectionPrivate() :
     socket(0),
     host(),
     port(6667),
+    bypass(false),
     currentServer(-1),
     userName(),
     nickName(),
@@ -366,10 +368,14 @@ void IrcConnectionPrivate::_irc_filterDestroyed(QObject* filter)
     commandFilters.removeAll(filter);
 }
 
-static bool parseServer(const QString& server, QString* host, int* port, bool* ssl)
+static bool parseServer(const QString& server, QString* host, int* port, bool* ssl, bool *bypass)
 {
     QStringList p = server.split(QRegExp("[: ]"), QString::SkipEmptyParts);
-    *host = p.value(0);
+
+    qDebug() << "parseServer " << p;
+    *bypass = p.value(0).startsWith(QLatin1Char('%'));
+    *host = p.value(0).remove('%');
+    qDebug() << "bypass: " << *bypass << " host: " << *host;
     *ssl = p.value(1).startsWith(QLatin1Char('+'));
     bool ok = false;
     *port = p.value(1).toInt(&ok);
@@ -386,13 +392,19 @@ void IrcConnectionPrivate::open()
     } else {
         closed = false;
         if (!servers.isEmpty()) {
-            QString h; int p; bool s;
+            QString h; int p; bool b; bool s;
             QString server = servers.value((++currentServer) % servers.count());
-            if (!parseServer(server, &h, &p, &s))
+            if (!parseServer(server, &h, &p, &s, &b))
                 qWarning() << "IrcConnection::servers: malformed line" << server;
             q->setHost(h);
             q->setPort(p);
+            q->setBypass(b);
             q->setSecure(s);
+        }
+        qDebug() << "bypass: " << q->bypass();
+        if (q->bypass()) {
+            qDebug() << q->host() << "bypassProxy";
+            socket->setProxy(QNetworkProxy::NoProxy);
         }
         socket->connectToHost(host, port);
     }
@@ -726,6 +738,25 @@ void IrcConnection::setPort(int port)
     }
 }
 
+bool IrcConnection::bypass() const
+{
+    Q_D(const IrcConnection);
+    return d->bypass;
+}
+
+void IrcConnection::setBypass(bool bypass)
+{
+    Q_D(IrcConnection);
+    if (d->bypass != bypass) {
+        if (isActive())
+            qWarning("IrcConnection::setBypass() has no effect until re-connect");
+        d->bypass = bypass;
+        emit bypassChanged(bypass);
+    }
+}
+
+
+
 /*!
     \since 3.3
 
@@ -772,8 +803,8 @@ void IrcConnection::setServers(const QStringList& servers)
  */
 bool IrcConnection::isValidServer(const QString& server)
 {
-    QString h; int p; bool s;
-    return parseServer(server, &h, &p, &s);
+    QString h; int p; bool s; bool b;
+    return parseServer(server, &h, &p, &s, &b);
 }
 
 /*!

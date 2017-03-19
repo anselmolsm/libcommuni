@@ -85,6 +85,7 @@ public:
     QAbstractSocket* socket;
     QString host;
     int port;
+    bool bypass;
     int currentServer;
     QStringList servers;
     QString userName;
